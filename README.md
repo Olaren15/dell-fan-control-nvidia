@@ -8,8 +8,10 @@ This little script fixes that problem by periodically checking the gpu temperatu
 
 # Will this work with my system?
 Maybe 🤷‍♀️ I only tested this script on my dell R430 and an Nvidia Tesla P4.
-You need to be able to run the `nvidia-smi` command (aka have the nvidia drivers installed)
-You need to have enabled IPMI over LAN in you IDRAC settings. On a 13th gen server this can be found under `Overview > IDRAC Settings > Network > IPMI Settings > Enable IPMI over LAN`
+The basic requirementes are: 
+- You have a Dell server and an Nvidia GPU (duh)
+- You need to be able to run the `nvidia-smi` command (aka have the nvidia drivers installed)
+- You need to have enabled IPMI over LAN in you IDRAC settings. On a 13th gen server this can be found under `Overview > IDRAC Settings > Network > IPMI Settings > Enable IPMI over LAN`
 
 # How to use
 1. Edit the `dell-fan-control-nvidia.sh` file to use the proper IP adress, username and password
