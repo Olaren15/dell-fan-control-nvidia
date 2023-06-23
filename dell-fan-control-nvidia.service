@@ -1,0 +1,8 @@
+[Unit]
+Description=Adjust the dell fan speeds base on nvidia gpu temperature
+
+[Service]
+ExecStart=/usr/local/bin/dell-fan-control-nvidia.sh
+
+[Install]
+WantedBy=multi-user.target
