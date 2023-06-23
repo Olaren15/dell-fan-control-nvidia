@@ -22,5 +22,8 @@ The basic requirementes are:
 6. run `sudo systemctl enable dell-fan-control-nvidia.service` to start the service on every boot
 7. enjoy!
 
+# Credits
+This script was (in part) inspired by [This repository](https://github.com/tigerblue77/Dell_iDRAC_fan_controller_Docker/tree/master) by [@tigetblue77](https://github.com/tigerblue77)
+
 ---
 Made with ❤️ by a friend of Blåhaj
