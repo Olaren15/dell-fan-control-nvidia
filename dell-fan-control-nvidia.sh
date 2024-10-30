@@ -66,7 +66,7 @@ while true; do
         apply_manual_fan_control
       fi
 
-      if [[ $GPU_TEMP -ge 100 && $FAN_CONTROL_MANUAL_PERCENTAGE == 100]]; then
+      if [[ $GPU_TEMP -ge 100 && $FAN_CONTROL_MANUAL_PERCENTAGE == 100 ]]; then
         echo "GPU temperature is extremely high (>= 100C). This is potentially a thermal runaway. Shutting down the system for safety."
         sudo shutdown now
       elif [[ $GPU_TEMP -ge 90 && $GPU_TEMP -lt 100 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 100 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 100 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
