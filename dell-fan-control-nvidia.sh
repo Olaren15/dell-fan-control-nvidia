@@ -65,21 +65,21 @@ while true; do
         apply_manual_fan_control
       fi
 
-      if [[ $GPU_TEMP -ge 90 && $FAN_CONTROL_MANUAL_PERCENTAGE != 50 ]]; then
-        echo "GPU temperature is critical (>= 90C). Setting fans to 50%."
-        apply_fan_speed 50
-      elif [[ $GPU_TEMP -ge 75 && $GPU_TEMP -lt 90 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 30 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 30 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
+      if [[ $GPU_TEMP -ge 90 && $FAN_CONTROL_MANUAL_PERCENTAGE != 100 ]]; then
+        echo "GPU temperature is critical (>= 90C). Setting fans to 100%."
+        apply_fan_speed 100
+      elif [[ $GPU_TEMP -ge 75 && $GPU_TEMP -lt 90 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 60 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 60 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
         # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is very high (>= 75C). Setting fans to 30%."
+        echo "GPU temperature is very high (>= 75C). Setting fans to 60%."
+        apply_fan_speed 60
+      elif [[ $GPU_TEMP -ge 70 && $GPU_TEMP -lt 75 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 40 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 40 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
+        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
+        echo "GPU temperature is high (>= 75C). Setting fans to 40%."
+        apply_fan_speed 40
+      elif [[ $GPU_TEMP -lt 70 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 30 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 30 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
+        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
+        echo "GPU temperature is getting warm (>= 65C). Setting fans to 30%."
         apply_fan_speed 30
-      elif [[ $GPU_TEMP -ge 70 && $GPU_TEMP -lt 75 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 25 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 25 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
-        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is high (>= 750). Setting fans to 25%."
-        apply_fan_speed 25
-      elif [[ $GPU_TEMP -lt 70 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 20 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 20 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
-        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is getting warm (>= 65C). Setting fans to 20%."
-        apply_fan_speed 20
       fi
 
   elif [[ "$FAN_CONTROL_STATE_MANUAL" == "$FAN_CONTROL_CURRENT_STATE" ]]; then
