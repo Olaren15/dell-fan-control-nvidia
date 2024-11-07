@@ -27,6 +27,9 @@ You can find a list of IPMI commands to test it [here](https://www.dell.com/supp
 **Cloning:**
 ```bash
 git clone https://github.com/Olaren15/dell-fan-control-nvidia.git
+cd dell-fan-control-nvidia
+sudo chmod +x *.sh
+nano *.sh
 ```
 
 Edit the `dell-fan-control-nvidia.sh` file to use the proper IP adress, username and password. You may use a text editor like nano or vim.
@@ -40,8 +43,14 @@ Edit the `dell-fan-control-nvidia.sh` file to use the proper IP adress, username
 **Setting Up:**
 
 ```bash
-sudo mv dell-fan-control-nvidia/dell-fan-control-nvidia.sh /usr/local/bin/dell-fan-control-nvidia.sh
-sudo mv dell-fan-control-nvidia/dell-fan-control-nvidia.service /lib/systemd/system/dell-fan-control-nvidia.service
+sudo mv dell-fan-control-nvidia.sh /usr/local/bin/dell-fan-control-nvidia.sh
+sudo mv dell-fan-control-nvidia.service /lib/systemd/system/dell-fan-control-nvidia.service
+```
+
+**Installing Dependency:**
+
+```bash
+sudo apt install ipmitool
 ```
 
 **Configuring systemctl:**
