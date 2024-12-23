@@ -24,9 +24,10 @@ function apply_fan_speed () {
     STEPS_SINCE_LAST_FAN_CHANGED=0
 }
 
-# Retrieve temperature sensors data using nvidia-smi
+# Retrieve temperature sensors data using nvidia-smi (Edited for multi-gpu compatibility)
 function retrieve_temperatures () {
-  GPU_TEMP=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader)
+  GPU_TEMP=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader | awk 'BEGIN{max=0} {if($1>max) max=$1} END{print max}')
+  echo "Current Highest GPU Temp: $GPU_TEMP °C"
 }
 
 # Prepare traps in case of script exit
