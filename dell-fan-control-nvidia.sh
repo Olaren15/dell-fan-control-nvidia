@@ -6,6 +6,7 @@ function apply_automatic_fan_control () {
   # Use ipmitool to send the raw command to set fan control to Dell default
   ipmitool -I $IDRAC_CONNECTION_STRING raw 0x30 0x30 0x01 0x01 > /dev/null
   FAN_CONTROL_CURRENT_STATE=$FAN_CONTROL_STATE_AUTOMATIC
+  echo "Fan control set to automatic."
 }
 
 # This function applies a user-specified static fan control profile
@@ -13,6 +14,7 @@ function apply_manual_fan_control () {
   # Use ipmitool to send the raw command to set fan control to user-specified value
   ipmitool -I $IDRAC_CONNECTION_STRING raw 0x30 0x30 0x01 0x00 > /dev/null
   FAN_CONTROL_CURRENT_STATE=$FAN_CONTROL_STATE_MANUAL
+  echo "Fan control set to manual."
 }
 
 function apply_fan_speed () {
@@ -22,6 +24,7 @@ function apply_fan_speed () {
     ipmitool -I $IDRAC_CONNECTION_STRING raw 0x30 0x30 0x02 0xff $HEXADECIMAL_FAN_SPEED > /dev/null
     FAN_CONTROL_MANUAL_PERCENTAGE=$1
     STEPS_SINCE_LAST_FAN_CHANGED=0
+    echo "Fan speed set to $1% ($HEXADECIMAL_FAN_SPEED)."
 }
 
 # Retrieve temperature sensors data using nvidia-smi (Edited for multi-gpu compatibility)
@@ -37,59 +40,83 @@ function gracefull_exit () {
   exit 0
 }
 
+function emergency_shutdown () {
+  echo "Emergency termination triggered! GPU temperature (${GPU_TEMP}°C) exceeds the threshold (${EMRG_TERM_TEMP}°C)."
+  echo "Shutting down the system immediately!"
+  shutdown -h now
+}
+
 # Trap the signals for script exit and run gracefull_exit function
 trap 'gracefull_exit' SIGQUIT SIGKILL SIGTERM EXIT
 
-# Your values here
+# --- User Configuration ---
 IDRAC_CONNECTION_STRING="lanplus -H <YOUR IDRAC IP HERE> -U <YOUR USERNAME HERE> -P <YOUR PASSWORD HERE>"
 
+# Fan Control States (do not modify if you don't know what these are)
 FAN_CONTROL_STATE_MANUAL="manual"
 FAN_CONTROL_STATE_AUTOMATIC="automatic"
-
 FAN_CONTROL_CURRENT_STATE=$FAN_CONTROL_STATE_AUTOMATIC
 FAN_CONTROL_MANUAL_PERCENTAGE=0
 
-STEPS_SINCE_LAST_FAN_CHANGED=0
+# Linear Fan Speed Algorithm Variables
+MIN_TEMP=65        # Temperature in Celsius to start increasing fan speed
+MAX_TEMP=90        # Temperature in Celsius at which fan speed reaches maximum
+MIN_FAN=20         # Minimum fan speed percentage
+MAX_FAN=100         # Maximum fan speed percentage
 
-apply_automatic_fan_control
+# Emegerency Termination
 
+EMRG_TERM_STATE="enabled" # or "disabled". Enabled by default to prevent hw dmg
+EMRG_TERM_TEMP=100 #in deg celsius, when reached, system will shut down immediately if termination is enabled
+
+# --- End of User Configuration ---
+
+# Non-linear Fan Speed Algorithm
 while true; do
   sleep 2 &
   SLEEP_PROCESS_PID=$!
 
   retrieve_temperatures
 
-  if (($GPU_TEMP >= 65)); then
+  if [[ "$EMRG_TERM_STATE" == "enabled" && $GPU_TEMP -ge $EMRG_TERM_TEMP ]]; then
+    emergency_shutdown
+  fi
+
+  if (($GPU_TEMP >= $MIN_TEMP)); then
       if [[ "$FAN_CONTROL_STATE_AUTOMATIC" == "$FAN_CONTROL_CURRENT_STATE" ]]; then
-        # If we are above the minimum treshold and the control isn't already manual, change it.
         echo "GPU temperature is getting high. Enabling manual fan control."
         apply_manual_fan_control
       fi
 
-      if [[ $GPU_TEMP -ge 90 && $FAN_CONTROL_MANUAL_PERCENTAGE != 50 ]]; then
-        echo "GPU temperature is critical (>= 90C). Setting fans to 50%."
-        apply_fan_speed 50
-      elif [[ $GPU_TEMP -ge 75 && $GPU_TEMP -lt 90 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 30 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 30 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
-        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is very high (>= 75C). Setting fans to 30%."
-        apply_fan_speed 30
-      elif [[ $GPU_TEMP -ge 70 && $GPU_TEMP -lt 75 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 25 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 25 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
-        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is high (>= 750). Setting fans to 25%."
-        apply_fan_speed 25
-      elif [[ $GPU_TEMP -lt 70 && ($FAN_CONTROL_MANUAL_PERCENTAGE -lt 20 || ($FAN_CONTROL_MANUAL_PERCENTAGE -gt 20 && $STEPS_SINCE_LAST_FAN_CHANGED -ge 10)) ]]; then
-        # Allow going from a lower fan % to a higher one, but don't lower the fan % for a certain time (10 steps of 2 seconds or 20 seconds) to minimize the fans spnning up and donw rapidly
-        echo "GPU temperature is getting warm (>= 65C). Setting fans to 20%."
-        apply_fan_speed 20
+      # Non-Linear Fan Speed Algorithm
+      if (($GPU_TEMP <= $MAX_TEMP)); then
+          # Calculate fan speed using a quadratic formula
+          TEMP_RATIO=$(echo "scale=4; ($GPU_TEMP - $MIN_TEMP) / ($MAX_TEMP - $MIN_TEMP)" | bc)
+          FAN_SPEED=$(echo "$MIN_FAN + ($MAX_FAN - $MIN_FAN) * ($TEMP_RATIO ^ 2)" | bc | awk '{printf("%d\n", $1 + 0.5)}')
+
+          # Ensure fan speed is within bounds
+          if (($FAN_SPEED < $MIN_FAN)); then
+              FAN_SPEED=$MIN_FAN
+          elif (($FAN_SPEED > $MAX_FAN)); then
+              FAN_SPEED=$MAX_FAN
+          fi
+      else
+          # If temperature exceeds MAX_TEMP, set fan to MAX_FAN
+          FAN_SPEED=$MAX_FAN
+      fi
+
+      # Apply fan speed only if it's different from the current manual percentage
+      if [[ "$FAN_CONTROL_MANUAL_PERCENTAGE" != "$FAN_SPEED" ]]; then
+          echo "Setting fan speed to ${FAN_SPEED}% based on non-linear algorithm."
+          apply_fan_speed $FAN_SPEED
       fi
 
   elif [[ "$FAN_CONTROL_STATE_MANUAL" == "$FAN_CONTROL_CURRENT_STATE" ]]; then
-    # Reset automatic fan control if temperature is below 65 degrees and we are currently in manual mode 
+    # Reset automatic fan control if temperature is below MIN_TEMP and we are currently in manual mode
     echo "GPU temperature is calming down. Returning to automatic fan control."
     apply_automatic_fan_control
     FAN_CONTROL_MANUAL_PERCENTAGE=0
   fi
 
-  STEPS_SINCE_LAST_FAN_CHANGED=$(($STEPS_SINCE_LAST_FAN_CHANGED + 1))
   wait $SLEEP_PROCESS_PID
 done
